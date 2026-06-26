@@ -1,0 +1,312 @@
+{
+  "name": "Smart Meeting Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d54c9638-a84c-4eae-bde4-ecc92d29a11b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "sheilanjerikimani@gmail.com",
+          "mode": "list",
+          "cachedResultName": "sheilanjerikimani@gmail.com"
+        },
+        "timeMax": "={{ $now.plus(60, 'minutes') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b1b97877-c175-40ed-96b1-deccdd5fbd80",
+      "name": "Get many events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "mge1f1hLVPC7Xp4T",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "39aa2152-37bf-40bf-b8f4-a44beb957844",
+              "leftValue": "={{ $json.summary }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "cebd3a9b-668e-4e3f-aeba-baf00c16b889",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a personal assistant for Sheila, a software engineering student in Nairobi who tends to miss meetings because of too many notifications.\n\nWrite a short, punchy, and personalized meeting reminder that is hard to ignore. Make it feel urgent and direct — not like a boring calendar notification.\n\nHere are the meeting details:\n- Meeting title: {{ $json.summary }}\n- Start time: {{ $json.start.dateTime }}\n- End time: {{ $json.end.dateTime }}\n\nRules:\n- Address her by name (Sheila)\n- Maximum 4 sentences\n- Make it urgent and impossible to ignore\n- Mention the meeting title and start time clearly\n- End with one specific action she should take right now to prepare",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "e50f321f-4586-4078-acbf-2ff89ae3d5db",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        112
+      ],
+      "id": "8aa1e805-e505-4016-977a-5664be5e4fb5",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oH1MmrmS76Zr42Es",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "sheilanjerikimani@gmail.com",
+        "subject": "=⚠️ Meeting Reminder: {{ $('Get many events').item.json.summary }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -96
+      ],
+      "id": "a0b1618b-1ad1-4873-92e6-5ce8821f41bc",
+      "name": "Send a message",
+      "webhookId": "5232c5b1-ccdf-48ab-b6f3-4bdb746113db",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "HqD0oCCOrEHUP5TB",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1qZgiCXrMbHCr2ZfDdI6YL1ZbBMQGytCYf64IGDSz474",
+          "mode": "list",
+          "cachedResultName": "Meeting Reminder Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qZgiCXrMbHCr2ZfDdI6YL1ZbBMQGytCYf64IGDSz474/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qZgiCXrMbHCr2ZfDdI6YL1ZbBMQGytCYf64IGDSz474/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Meeting Title": "={{ $('Get many events').item.json.summary }}",
+            "Meeting Starting Time": "={{ $('Get many events').item.json.start.dateTime }}",
+            "Reminder sent At": "={{ $now }}",
+            "AI Message": "={{ $('Basic LLM Chain').item.json.text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Meeting Title",
+              "displayName": "Meeting Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Meeting Starting Time",
+              "displayName": "Meeting Starting Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reminder sent At",
+              "displayName": "Reminder sent At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Message",
+              "displayName": "AI Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        -96
+      ],
+      "id": "b5f7597f-e28f-4959-8e37-cbbf1ef73812",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Inn6Xod7nGkRRZRD",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2824dc04-bb9b-41cd-a419-e7dab9b0a23c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4c1fd17f051c417f3b5d691817bc40512ef6c102b17aa6809e635047b16909ac"
+  },
+  "nodeGroups": [],
+  "id": "l2y2jwhZrSdlJHPn",
+  "tags": []
+}
